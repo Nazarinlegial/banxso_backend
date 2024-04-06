@@ -2,6 +2,7 @@ import {userService} from "./user.service.js";
 import {graphService} from "./graph.service.js";
 import {ApiError} from "./exceptions.js";
 import {createPagePagination} from "../helper/utils/pagination.js";
+import {cleanXSSHtml, transformMailHtml} from "../helper/utils/parse-html.js";
 
 class MailService {
 
@@ -16,12 +17,27 @@ class MailService {
         const skip = (page - 1) * take
 
         const {count, messages} = await graphService.messages(user_account_id, {take, skip})
-        const countPage = createPagePagination(count, take)
 
-        return {
-            countPage,
-            messages
+        try {
+            const parseMessages = messages.map(item => {
+                if(item.body.contentType !== "html") return item
+                item.body.content = cleanXSSHtml(item.body.content)
+                return item
+            })
+            const countPage = createPagePagination(count, take)
+
+            return {
+                countPage,
+                messages: parseMessages
+            }
+
+        } catch (e) {
+            console.log('html parse error', e)
+            throw e
         }
+
+
+
     }
 
 
